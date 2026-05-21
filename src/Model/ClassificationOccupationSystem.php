@@ -9,6 +9,7 @@ enum ClassificationOccupationSystem: string
     case SOC = 'SOC';
     case UK_SOC = 'UK_SOC';
     case ISCO = 'ISCO';
+    case ESCO = 'ESCO';
 
     public function directory(): string
     {
@@ -16,6 +17,7 @@ enum ClassificationOccupationSystem: string
             self::SOC => 'soc',
             self::UK_SOC => 'uk_soc',
             self::ISCO => 'isco',
+            self::ESCO => 'esco',
         };
     }
 }

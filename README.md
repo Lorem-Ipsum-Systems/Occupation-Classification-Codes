@@ -9,6 +9,7 @@ A framework-agnostic PHP library for occupational and employee classification co
 | SOC    | 2018    | United States | `data/soc/2018/` |
 | UK_SOC | 2020    | United Kingdom | `data/uk_soc/2020/` |
 | ISCO   | 08      | International (ILO/UN) | `data/isco/08/` |
+| ESCO   | 1.2.1   | European Union | `data/esco/1.2.1/` |
 
 ## Installation
 
@@ -70,19 +71,22 @@ data/
       isco_08_en.ndjson
       isco_08_en_structure_and_definitions.ndjson
       isco_08_88_en_index.ndjson
+  esco/
+    1.2.1/
+      occupations_en.ndjson
+      broaderRelationsOccPillar_en.ndjson
 ```
 
 ## v1 Limitations
 
 - No crosswalks or framework-to-framework mappings.
 - No version migration tools.
-- No support for ESCO, NOC, or ANZSCO yet.
+- No support for NOC or ANZSCO yet.
 - Historical fields in source files (e.g., ISCO-88, SOC 2010) are preserved as internal metadata only.
 
 ## Future Roadmap
 
 Planned additive features:
-- Support for ESCO (European Skills/Competences, Qualifications and Occupations).
 - Support for NOC (Canada) and ANZSCO (Australia/New Zealand).
 - Multi-language translations.
 - Relationship and crosswalk files.

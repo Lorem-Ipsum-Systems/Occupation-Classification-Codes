@@ -79,6 +79,17 @@ class ClassificationOccupationRegistry
                         new ClassificationOccupationDataFile('isco_08_88_en_index.ndjson', ClassificationOccupationDataCategory::SEARCH),
                     ]
                 ),
+                new ClassificationOccupationDatasetDefinition(
+                    ClassificationOccupationSystem::ESCO,
+                    '1.2.1',
+                    'EU',
+                    'esco',
+                    'esco/1.2.1',
+                    [
+                        new ClassificationOccupationDataFile('occupations_en.ndjson', ClassificationOccupationDataCategory::STRUCTURE),
+                        new ClassificationOccupationDataFile('broaderRelationsOccPillar_en.ndjson', ClassificationOccupationDataCategory::STRUCTURE),
+                    ]
+                ),
             ]
         );
 

@@ -43,6 +43,12 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
                 foreach ($codes as $c) { $codesMap[$c->code] = true; }
                 $searchTerms = $this->loadIscoSearch($definition, $codesMap);
                 break;
+            case ClassificationOccupationSystem::ESCO:
+                $codes = $this->loadEsco($definition);
+                $codesMap = [];
+                foreach ($codes as $c) { $codesMap[$c->code] = true; }
+                $searchTerms = $this->loadEscoSearch($definition, $codesMap);
+                break;
         }
 
         $codes = $this->calculateIsLeaf($codes);
@@ -489,5 +495,197 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
         }
 
         return $terms;
+    }
+
+    /**
+     * @return ClassificationOccupationCode[]
+     */
+    private function loadEsco(ClassificationOccupationDatasetDefinition $definition): array
+    {
+        $occupationsPath = null;
+        $relationsPath = null;
+
+        foreach ($definition->files as $file) {
+            if ($file->filename === 'occupations_en.ndjson') {
+                $occupationsPath = $this->dataRoot . '/' . $definition->basePath . '/' . $file->filename;
+            } elseif ($file->filename === 'broaderRelationsOccPillar_en.ndjson') {
+                $relationsPath = $this->dataRoot . '/' . $definition->basePath . '/' . $file->filename;
+            }
+        }
+
+        if (!$occupationsPath) {
+            return [];
+        }
+
+        $relations = [];
+        if ($relationsPath) {
+            foreach ($this->reader->read($relationsPath) as $record) {
+                $conceptUri = $record['concepturi'] ?? null;
+                $broaderUri = $record['broaderuri'] ?? null;
+                if ($conceptUri && $broaderUri) {
+                    $relations[$conceptUri] = $broaderUri;
+                }
+            }
+        }
+
+        $codes = [];
+        foreach ($this->reader->read($occupationsPath) as $record) {
+            $uri = $record['concepturi'] ?? null;
+            if (!$uri) {
+                continue;
+            }
+
+            $codes[] = new ClassificationOccupationCode(
+                $definition->system,
+                $definition->version,
+                $definition->jurisdiction,
+                (string)$uri,
+                (string)($record['preferredlabel'] ?? ''),
+                0,
+                $relations[$uri] ?? null,
+                false,
+                true,
+                $record['description'] ?? null,
+                null,
+                null,
+                null,
+                null,
+                $record
+            );
+        }
+
+        return $this->calculateEscoLevels($codes);
+    }
+
+    /**
+     * @param array<string, bool> $validCodes
+     * @return ClassificationOccupationSearchTerm[]
+     */
+    private function loadEscoSearch(ClassificationOccupationDatasetDefinition $definition, array $validCodes): array
+    {
+        $occupationsPath = null;
+        foreach ($definition->files as $file) {
+            if ($file->filename === 'occupations_en.ndjson') {
+                $occupationsPath = $this->dataRoot . '/' . $definition->basePath . '/' . $file->filename;
+                break;
+            }
+        }
+
+        if (!$occupationsPath) {
+            return [];
+        }
+
+        $terms = [];
+        foreach ($this->reader->read($occupationsPath) as $record) {
+            $uri = $record['concepturi'] ?? null;
+            if (!$uri || !isset($validCodes[$uri])) {
+                continue;
+            }
+
+            // Preferred Label
+            if (isset($record['preferredlabel']) && $record['preferredlabel'] !== '') {
+                $terms[] = new ClassificationOccupationSearchTerm(
+                    $definition->system,
+                    $definition->version,
+                    $definition->jurisdiction,
+                    $uri,
+                    (string)$record['preferredlabel'],
+                    null,
+                    false,
+                    $record
+                );
+            }
+
+            // Alt Labels
+            if (isset($record['altlabels']) && $record['altlabels'] !== '') {
+                $altLabels = explode("\n", $record['altlabels']);
+                foreach ($altLabels as $altLabel) {
+                    $altLabel = trim($altLabel);
+                    if ($altLabel !== '') {
+                        $terms[] = new ClassificationOccupationSearchTerm(
+                            $definition->system,
+                            $definition->version,
+                            $definition->jurisdiction,
+                            $uri,
+                            $altLabel,
+                            null,
+                            false,
+                            $record
+                        );
+                    }
+                }
+            }
+
+            // Numeric Code
+            if (isset($record['code']) && $record['code'] !== '') {
+                $terms[] = new ClassificationOccupationSearchTerm(
+                    $definition->system,
+                    $definition->version,
+                    $definition->jurisdiction,
+                    $uri,
+                    (string)$record['code'],
+                    null,
+                    false,
+                    $record
+                );
+            }
+        }
+
+        return $terms;
+    }
+
+    /**
+     * @param ClassificationOccupationCode[] $codes
+     * @return ClassificationOccupationCode[]
+     */
+    private function calculateEscoLevels(array $codes): array
+    {
+        $codesByUri = [];
+        foreach ($codes as $code) {
+            $codesByUri[$code->code] = $code;
+        }
+
+        $levels = [];
+        $getLevel = function ($uri, array $visited = []) use (&$getLevel, &$levels, $codesByUri) {
+            if (isset($levels[$uri])) {
+                return $levels[$uri];
+            }
+
+            if (isset($visited[$uri])) {
+                return $levels[$uri] = 1;
+            }
+            $visited[$uri] = true;
+
+            $code = $codesByUri[$uri] ?? null;
+            if (!$code || $code->parentCode === null) {
+                return $levels[$uri] = 1;
+            }
+
+            return $levels[$uri] = 1 + $getLevel($code->parentCode, $visited);
+        };
+
+        $updatedCodes = [];
+        foreach ($codes as $code) {
+            $level = $getLevel($code->code);
+            $updatedCodes[] = new ClassificationOccupationCode(
+                $code->system,
+                $code->version,
+                $code->jurisdiction,
+                $code->code,
+                $code->title,
+                $level,
+                $code->parentCode,
+                $code->isLeaf,
+                $code->isSelectable,
+                $code->description,
+                $code->tasksInclude,
+                $code->includedOccupations,
+                $code->excludedOccupations,
+                $code->notes,
+                $code->sourceMetadata
+            );
+        }
+
+        return $updatedCodes;
     }
 }
