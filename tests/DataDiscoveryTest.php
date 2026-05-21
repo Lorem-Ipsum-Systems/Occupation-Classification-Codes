@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace ClassificationOccupation\Tests;
 
-use ClassificationOccupation\ClassificationOccupationDataCategory;
-use ClassificationOccupation\ClassificationOccupationDataManifest;
+use ClassificationOccupation\Data\ClassificationOccupationDataCategory;
+use ClassificationOccupation\Data\ClassificationOccupationDataManifest;
 use ClassificationOccupation\ClassificationOccupationRegistry;
 use PHPUnit\Framework\TestCase;
 
@@ -26,20 +26,20 @@ class DataDiscoveryTest extends TestCase
         $manifest = new ClassificationOccupationDataManifest(
             __DIR__,
             [
-                new \ClassificationOccupation\ClassificationOccupationDatasetDefinition(
-                    \ClassificationOccupation\ClassificationOccupationSystem::SOC,
+                new \ClassificationOccupation\Data\ClassificationOccupationDatasetDefinition(
+                    \ClassificationOccupation\Model\ClassificationOccupationSystem::SOC,
                     '2018',
                     'US',
                     'soc',
                     'soc/2018',
                     [
-                        new \ClassificationOccupation\ClassificationOccupationDataFile('non_existent.ndjson', ClassificationOccupationDataCategory::STRUCTURE)
+                        new \ClassificationOccupation\Data\ClassificationOccupationDataFile('non_existent.ndjson', ClassificationOccupationDataCategory::STRUCTURE)
                     ]
                 )
             ]
         );
 
-        $this->expectException(\ClassificationOccupation\ClassificationOccupationDataFileNotFound::class);
+        $this->expectException(\ClassificationOccupation\Exception\ClassificationOccupationDataFileNotFound::class);
         $this->expectExceptionMessage('Data file missing for SOC 2018');
         $manifest->validate();
     }
@@ -68,17 +68,17 @@ class DataDiscoveryTest extends TestCase
         /** @var ClassificationOccupationDataManifest $manifest */
         $manifest = $property->getValue($api);
 
-        $soc2018 = $manifest->getDataset(\ClassificationOccupation\ClassificationOccupationSystem::SOC, '2018');
+        $soc2018 = $manifest->getDataset(\ClassificationOccupation\Model\ClassificationOccupationSystem::SOC, '2018');
         $this->assertNotNull($soc2018);
         $this->assertEquals('US', $soc2018->jurisdiction);
         $this->assertEquals('soc', $soc2018->directoryKey);
         $this->assertEquals('soc/2018', $soc2018->basePath);
 
-        $uksoc2020 = $manifest->getDataset(\ClassificationOccupation\ClassificationOccupationSystem::UK_SOC, '2020');
+        $uksoc2020 = $manifest->getDataset(\ClassificationOccupation\Model\ClassificationOccupationSystem::UK_SOC, '2020');
         $this->assertNotNull($uksoc2020);
         $this->assertEquals('GB', $uksoc2020->jurisdiction);
 
-        $isco08 = $manifest->getDataset(\ClassificationOccupation\ClassificationOccupationSystem::ISCO, '08');
+        $isco08 = $manifest->getDataset(\ClassificationOccupation\Model\ClassificationOccupationSystem::ISCO, '08');
         $this->assertNotNull($isco08);
         $this->assertEquals('INTL', $isco08->jurisdiction);
     }

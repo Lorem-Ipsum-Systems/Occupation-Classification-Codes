@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ClassificationOccupation;
+namespace ClassificationOccupation\Data;
 
 /**
  * @immutable

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace ClassificationOccupation\Tests;
 
 use ClassificationOccupation\ClassificationOccupationRegistry;
-use ClassificationOccupation\ClassificationOccupationCodeNotFound;
-use ClassificationOccupation\ClassificationOccupationSystemNotFound;
-use ClassificationOccupation\ClassificationOccupationVersionNotFound;
+use ClassificationOccupation\Exception\ClassificationOccupationCodeNotFound;
+use ClassificationOccupation\Exception\ClassificationOccupationSystemNotFound;
+use ClassificationOccupation\Exception\ClassificationOccupationVersionNotFound;
 use PHPUnit\Framework\TestCase;
 
 class RegistryApiTest extends TestCase
@@ -150,7 +150,7 @@ class RegistryApiTest extends TestCase
         $property->setAccessible(true);
         $manifest = $property->getValue($this->registry);
         
-        $this->assertInstanceOf(\ClassificationOccupation\ClassificationOccupationDataManifest::class, $manifest);
+        $this->assertInstanceOf(\ClassificationOccupation\Data\ClassificationOccupationDataManifest::class, $manifest);
         $this->assertDirectoryExists($manifest->getDataRoot());
     }
 }

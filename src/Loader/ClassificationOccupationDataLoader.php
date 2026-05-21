@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
-namespace ClassificationOccupation;
+namespace ClassificationOccupation\Loader;
+
+use ClassificationOccupation\Data\ClassificationOccupationDatasetDefinition;
+use ClassificationOccupation\Model\ClassificationOccupationDataset;
 
 interface ClassificationOccupationDataLoader
 {

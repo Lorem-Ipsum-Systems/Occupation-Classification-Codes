@@ -2,7 +2,14 @@
 
 declare(strict_types=1);
 
-namespace ClassificationOccupation;
+namespace ClassificationOccupation\Loader;
+
+use ClassificationOccupation\Data\ClassificationOccupationDataCategory;
+use ClassificationOccupation\Data\ClassificationOccupationDatasetDefinition;
+use ClassificationOccupation\Model\ClassificationOccupationCode;
+use ClassificationOccupation\Model\ClassificationOccupationDataset;
+use ClassificationOccupation\Model\ClassificationOccupationSearchTerm;
+use ClassificationOccupation\Model\ClassificationOccupationSystem;
 
 class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
 {
@@ -119,8 +126,8 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
         if ($definitionsPath) {
             foreach ($this->reader->read($definitionsPath) as $record) {
                 $code = $record['soc_code'] ?? null;
-                if ($code) {
-                    $definitions[$code] = $record['soc_definition'] ?? null;
+                if ($code !== null && $code !== '') {
+                    $definitions[(string)$code] = $record['soc_definition'] ?? null;
                 }
             }
         }
@@ -356,7 +363,7 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
         if ($richPath) {
             foreach ($this->reader->read($richPath) as $record) {
                 $code = $record['isco_08_code'] ?? null;
-                if ($code) {
+                if ($code !== null && $code !== '') {
                     $richData[(string)$code] = $record;
                 }
             }
@@ -364,7 +371,14 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
 
         $uniqueCodes = [];
 
-        if ($hierarchyPath) {
+        if (!empty($richData)) {
+            foreach ($richData as $code => $record) {
+                $uniqueCodes[$code] = [
+                    'title' => $record['title_en'] ?? '',
+                    'record' => $record
+                ];
+            }
+        } elseif ($hierarchyPath) {
             foreach ($this->reader->read($hierarchyPath) as $record) {
                 if (($record['isco_version'] ?? '') !== 'ISCO-08') {
                     continue;
@@ -406,6 +420,12 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
             $parentCode = null;
             if ($level > 1) {
                 $parentCode = substr($code, 0, $level - 1);
+                // For ISCO, 2nd level can be 2 chars (sub-major), 3rd level 3 chars (minor), 4th level 4 chars (unit)
+                // Wait, ISCO levels are 1, 2, 3, 4 digits.
+                // Major: 1 digit
+                // Sub-major: 2 digits
+                // Minor: 3 digits
+                // Unit: 4 digits
                 if (!in_array($parentCode, $allValidCodes)) {
                     $parentCode = null;
                 }

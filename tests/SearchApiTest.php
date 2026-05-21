@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace ClassificationOccupation\Tests;
 
 use ClassificationOccupation\ClassificationOccupationRegistry;
-use ClassificationOccupation\ClassificationOccupationSearchResult;
-use ClassificationOccupation\ClassificationOccupationSystem;
+use ClassificationOccupation\Model\ClassificationOccupationSearchResult;
+use ClassificationOccupation\Model\ClassificationOccupationSystem;
 use PHPUnit\Framework\TestCase;
 
 class SearchApiTest extends TestCase

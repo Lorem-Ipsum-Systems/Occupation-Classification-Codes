@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace ClassificationOccupation\Tests;
 
 use ClassificationOccupation\ClassificationOccupationRegistry;
-use ClassificationOccupation\ClassificationOccupationCode;
-use ClassificationOccupation\ClassificationOccupationSearchTerm;
-use ClassificationOccupation\ClassificationOccupationSystem;
+use ClassificationOccupation\Model\ClassificationOccupationCode;
+use ClassificationOccupation\Model\ClassificationOccupationSearchTerm;
+use ClassificationOccupation\Model\ClassificationOccupationSystem;
+use ClassificationOccupation\Model\ClassificationOccupationVersion;
 use PHPUnit\Framework\TestCase;
 
 class ClassificationOccupationTest extends TestCase
@@ -90,7 +91,7 @@ class ClassificationOccupationTest extends TestCase
 
     public function testInvalidSystemVersionThrows(): void
     {
-        $this->expectException(\ClassificationOccupation\ClassificationOccupationVersionNotFound::class);
+        $this->expectException(\ClassificationOccupation\Exception\ClassificationOccupationVersionNotFound::class);
         $this->api->codes('SOC', '9999');
     }
 
@@ -105,7 +106,7 @@ class ClassificationOccupationTest extends TestCase
 
     public function testClassificationOccupationVersion(): void
     {
-        $version = new \ClassificationOccupation\ClassificationOccupationVersion('2018');
+        $version = new \ClassificationOccupation\Model\ClassificationOccupationVersion('2018');
         $this->assertEquals('2018', (string)$version);
         $this->assertEquals('2018', $version->version);
     }

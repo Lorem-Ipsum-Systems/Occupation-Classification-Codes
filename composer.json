@@ -24,6 +24,28 @@
             "name": "Lorem Ipsum Systems"
         }
     ],
+    "keywords": [
+        "occupation",
+        "classification",
+        "soc",
+        "uk-soc",
+        "isco",
+        "standard-occupational-classification"
+    ],
+    "support": {
+        "issues": "https://github.com/lorem-ipsum-systems/occupation-classification-codes/issues",
+        "source": "https://github.com/lorem-ipsum-systems/occupation-classification-codes"
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "composer-validate": "composer validate --strict",
+        "validate-data": "vendor/bin/phpunit tests/DataIntegrityTest.php",
+        "quality": [
+            "@composer-validate",
+            "@test",
+            "@validate-data"
+        ]
+    },
     "minimum-stability": "stable",
     "prefer-stable": true
 }

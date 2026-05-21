@@ -4,6 +4,22 @@ declare(strict_types=1);
 
 namespace ClassificationOccupation;
 
+use ClassificationOccupation\Data\ClassificationOccupationDataCategory;
+use ClassificationOccupation\Data\ClassificationOccupationDataFile;
+use ClassificationOccupation\Data\ClassificationOccupationDataManifest;
+use ClassificationOccupation\Data\ClassificationOccupationDatasetDefinition;
+use ClassificationOccupation\Exception\ClassificationOccupationCodeNotFound;
+use ClassificationOccupation\Exception\ClassificationOccupationException;
+use ClassificationOccupation\Exception\ClassificationOccupationSystemNotFound;
+use ClassificationOccupation\Exception\ClassificationOccupationVersionNotFound;
+use ClassificationOccupation\Loader\ClassificationOccupationDataLoader;
+use ClassificationOccupation\Loader\DefaultOccupationDataLoader;
+use ClassificationOccupation\Model\ClassificationOccupationCode;
+use ClassificationOccupation\Model\ClassificationOccupationDataset;
+use ClassificationOccupation\Model\ClassificationOccupationSearchResult;
+use ClassificationOccupation\Model\ClassificationOccupationSearchTerm;
+use ClassificationOccupation\Model\ClassificationOccupationSystem;
+
 class ClassificationOccupationRegistry
 {
     /** @var array<string, ClassificationOccupationDataset> */

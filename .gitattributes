@@ -1,6 +1,10 @@
+# Export settings
 /tests export-ignore
+/.github export-ignore
+/.junie export-ignore
 /phpunit.xml.dist export-ignore
 /.gitignore export-ignore
-/.gitattributes export-ignore
-/.junie export-ignore
-/CHANGELOG.md export-ignore
+/RELEASE.md export-ignore
+
+# Keep data files
+/data/ !export-ignore
