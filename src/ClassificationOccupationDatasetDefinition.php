@@ -13,7 +13,7 @@ readonly class ClassificationOccupationDatasetDefinition
      * @param ClassificationOccupationDataFile[] $files
      */
     public function __construct(
-        public System $system,
+        public ClassificationOccupationSystem $system,
         public string $version,
         public string $jurisdiction,
         public string $directoryKey,

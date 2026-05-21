@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ClassificationOccupation;
 
-enum System: string
+enum ClassificationOccupationSystem: string
 {
     case SOC = 'SOC';
     case UK_SOC = 'UK_SOC';

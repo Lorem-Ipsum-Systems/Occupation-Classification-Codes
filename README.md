@@ -16,14 +16,14 @@ composer require lorem-ipsum-systems/occupation-classification-codes
 ## Usage
 
 ```php
-use ClassificationOccupation\ClassificationOccupation;
-use ClassificationOccupation\System;
+use ClassificationOccupation\ClassificationOccupationRegistry;
+use ClassificationOccupation\ClassificationOccupationSystem;
 
 // Initialize the API
-$api = new ClassificationOccupation();
+$api = ClassificationOccupationRegistry::fromDefaultData();
 
 // Get occupations for a specific system and version
-$occupations = $api->getOccupations(System::SOC, '2018');
+$occupations = $api->getOccupations(ClassificationOccupationSystem::SOC, '2018');
 
 foreach ($occupations as $occupation) {
     echo $occupation->code . ': ' . $occupation->title . PHP_EOL;

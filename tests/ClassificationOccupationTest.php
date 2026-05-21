@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace ClassificationOccupation\Tests;
 
 use ClassificationOccupation\ClassificationOccupation;
-use ClassificationOccupation\Occupation;
-use ClassificationOccupation\System;
+use ClassificationOccupation\ClassificationOccupationCode;
+use ClassificationOccupation\ClassificationOccupationSearchTerm;
+use ClassificationOccupation\ClassificationOccupationSystem;
 use PHPUnit\Framework\TestCase;
 
 class ClassificationOccupationTest extends TestCase
@@ -20,56 +21,92 @@ class ClassificationOccupationTest extends TestCase
 
     public function testGetOccupationsSoc2018(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(System::SOC, '2018'));
+        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::SOC, '2018'));
         $this->assertNotEmpty($occupations);
-        $this->assertInstanceOf(Occupation::class, $occupations[0]);
+        $this->assertInstanceOf(ClassificationOccupationCode::class, $occupations[0]);
         $this->assertEquals('11-0000', $occupations[0]->code);
         $this->assertEquals('Management Occupations', $occupations[0]->title);
+        $this->assertEquals(1, $occupations[0]->level);
+        $this->assertNull($occupations[0]->parentCode);
+        $this->assertFalse($occupations[0]->isLeaf);
+        
+        // Find a leaf node
+        $leaf = null;
+        foreach ($occupations as $occ) {
+            if ($occ->isLeaf) {
+                $leaf = $occ;
+                break;
+            }
+        }
+        $this->assertNotNull($leaf);
+        $this->assertNotNull($leaf->parentCode);
     }
 
-    public function testGetDefinitionsSoc2018(): void
+    public function testGetSearchTermsSoc2018(): void
     {
-        $definitions = iterator_to_array($this->api->getDefinitions(System::SOC, '2018'));
-        $this->assertNotEmpty($definitions);
-        $this->assertEquals('11-0000', $definitions[0]->code);
-        $this->assertEquals('Management Occupations', $definitions[0]->title);
-    }
-
-    public function testGetIndexSoc2018(): void
-    {
-        $index = iterator_to_array($this->api->getIndex(System::SOC, '2018'));
-        $this->assertNotEmpty($index);
-        $this->assertIsString($index[0]->code);
-        $this->assertIsString($index[0]->title);
+        $terms = iterator_to_array($this->api->getSearchTerms(ClassificationOccupationSystem::SOC, '2018'));
+        $this->assertNotEmpty($terms);
+        $this->assertInstanceOf(ClassificationOccupationSearchTerm::class, $terms[0]);
+        $this->assertIsString($terms[0]->code);
+        $this->assertIsString($terms[0]->term);
     }
 
     public function testGetOccupationsUkSoc2020(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(System::UK_SOC, '2020'));
+        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::UK_SOC, '2020'));
         $this->assertNotEmpty($occupations);
         $this->assertEquals('1', $occupations[0]->code);
         $this->assertEquals('MANAGERS, DIRECTORS AND SENIOR OFFICIALS', $occupations[0]->title);
+        $this->assertEquals(1, $occupations[0]->level);
     }
 
     public function testGetOccupationsIsco08(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(System::ISCO, '08'));
+        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::ISCO, '08'));
         $this->assertNotEmpty($occupations);
-        $this->assertEquals('1111', $occupations[0]->code);
-        $this->assertEquals('Legislators', $occupations[0]->title);
+        
+        // Find a specific code to verify
+        $code1111 = null;
+        foreach ($occupations as $occ) {
+            if ($occ->code === '1111') {
+                $code1111 = $occ;
+                break;
+            }
+        }
+        
+        $this->assertNotNull($code1111);
+        $this->assertEquals('Legislators', $code1111->title);
+        $this->assertEquals(4, $code1111->level);
+        $this->assertEquals('111', $code1111->parentCode);
     }
 
-    public function testPreservesMetadata(): void
+    public function testPreservesSourceMetadata(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(System::SOC, '2018'));
+        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::SOC, '2018'));
         $first = $occupations[0];
-        $this->assertArrayHasKey('source_file', $first->metadata);
-        $this->assertEquals('soc_structure_2018.xlsx', $first->metadata['source_file']);
+        $this->assertArrayHasKey('source_file', $first->sourceMetadata);
+        $this->assertEquals('soc_structure_2018.xlsx', $first->sourceMetadata['source_file']);
     }
 
     public function testInvalidSystemVersionReturnsEmpty(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(System::SOC, '9999'));
+        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::SOC, '9999'));
         $this->assertEmpty($occupations);
+    }
+
+    public function testSystemAndVersionArePresentInCode(): void
+    {
+        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::SOC, '2018'));
+        $first = $occupations[0];
+        $this->assertEquals(ClassificationOccupationSystem::SOC, $first->system);
+        $this->assertEquals('2018', $first->version);
+        $this->assertEquals('US', $first->jurisdiction);
+    }
+
+    public function testClassificationOccupationVersion(): void
+    {
+        $version = new \ClassificationOccupation\ClassificationOccupationVersion('2018');
+        $this->assertEquals('2018', (string)$version);
+        $this->assertEquals('2018', $version->version);
     }
 }

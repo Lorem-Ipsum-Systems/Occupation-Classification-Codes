@@ -28,7 +28,7 @@ class ClassificationOccupationDataManifest
         return $this->datasets;
     }
 
-    public function getDataset(System $system, string $version): ?ClassificationOccupationDatasetDefinition
+    public function getDataset(ClassificationOccupationSystem $system, string $version): ?ClassificationOccupationDatasetDefinition
     {
         foreach ($this->datasets as $dataset) {
             if ($dataset->system === $system && $dataset->version === $version) {

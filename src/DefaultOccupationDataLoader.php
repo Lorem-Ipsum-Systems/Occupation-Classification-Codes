@@ -1,0 +1,424 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ClassificationOccupation;
+
+class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
+{
+    public function __construct(
+        private readonly string $dataRoot,
+        private readonly NdjsonReader $reader = new NdjsonReader()
+    ) {
+    }
+
+    public function load(ClassificationOccupationDatasetDefinition $definition): ClassificationOccupationDataset
+    {
+        $codes = [];
+        $searchTerms = [];
+
+        switch ($definition->system) {
+            case ClassificationOccupationSystem::SOC:
+                $codes = $this->loadSoc($definition);
+                $searchTerms = $this->loadSocSearch($definition);
+                break;
+            case ClassificationOccupationSystem::UK_SOC:
+                $codes = $this->loadUkSoc($definition);
+                $searchTerms = $this->loadUkSocSearch($definition);
+                break;
+            case ClassificationOccupationSystem::ISCO:
+                $codes = $this->loadIsco($definition);
+                $searchTerms = $this->loadIscoSearch($definition);
+                break;
+        }
+
+        $codes = $this->calculateIsLeaf($codes);
+
+        return new ClassificationOccupationDataset(
+            $definition->system,
+            $definition->version,
+            $definition->jurisdiction,
+            $codes,
+            $searchTerms
+        );
+    }
+
+    /**
+     * @param ClassificationOccupationCode[] $codes
+     * @return ClassificationOccupationCode[]
+     */
+    private function calculateIsLeaf(array $codes): array
+    {
+        $parentCodes = [];
+        foreach ($codes as $code) {
+            if ($code->parentCode !== null) {
+                $parentCodes[$code->parentCode] = true;
+            }
+        }
+
+        $updatedCodes = [];
+        foreach ($codes as $code) {
+            $isLeaf = !isset($parentCodes[$code->code]);
+            if ($isLeaf !== $code->isLeaf) {
+                $updatedCodes[] = new ClassificationOccupationCode(
+                    $code->system,
+                    $code->version,
+                    $code->jurisdiction,
+                    $code->code,
+                    $code->title,
+                    $code->level,
+                    $code->parentCode,
+                    $isLeaf,
+                    $code->isSelectable,
+                    $code->description,
+                    $code->tasksInclude,
+                    $code->includedOccupations,
+                    $code->excludedOccupations,
+                    $code->notes,
+                    $code->sourceMetadata
+                );
+            } else {
+                $updatedCodes[] = $code;
+            }
+        }
+
+        return $updatedCodes;
+    }
+
+    private function getFilePath(ClassificationOccupationDatasetDefinition $definition, ClassificationOccupationDataCategory $category): ?string
+    {
+        $file = $definition->getFileByCategory($category);
+        if (!$file) {
+            return null;
+        }
+
+        return $this->dataRoot . '/' . $definition->basePath . '/' . $file->filename;
+    }
+
+    /**
+     * @return ClassificationOccupationCode[]
+     */
+    private function loadSoc(ClassificationOccupationDatasetDefinition $definition): array
+    {
+        $structurePath = $this->getFilePath($definition, ClassificationOccupationDataCategory::STRUCTURE);
+        $definitionsPath = $this->getFilePath($definition, ClassificationOccupationDataCategory::DEFINITIONS);
+
+        $definitions = [];
+        if ($definitionsPath) {
+            foreach ($this->reader->read($definitionsPath) as $record) {
+                $code = $record['soc_code'] ?? null;
+                if ($code) {
+                    $definitions[$code] = $record['soc_definition'] ?? null;
+                }
+            }
+        }
+
+        $codes = [];
+        $lastMajor = null;
+        $lastMinor = null;
+        $lastBroad = null;
+
+        if ($structurePath) {
+            foreach ($this->reader->read($structurePath) as $record) {
+                $code = null;
+                $level = 0;
+                $parentCode = null;
+
+                if (!empty($record['detailed_occupation'])) {
+                    $code = $record['detailed_occupation'];
+                    $level = 4;
+                    $parentCode = $lastBroad;
+                } elseif (!empty($record['broad_group'])) {
+                    $code = $record['broad_group'];
+                    $level = 3;
+                    $parentCode = $lastMinor;
+                    $lastBroad = $code;
+                } elseif (!empty($record['minor_group'])) {
+                    $code = $record['minor_group'];
+                    $level = 2;
+                    $parentCode = $lastMajor;
+                    $lastMinor = $code;
+                } elseif (!empty($record['major_group'])) {
+                    $code = $record['major_group'];
+                    $level = 1;
+                    $parentCode = null;
+                    $lastMajor = $code;
+                }
+
+                if ($code) {
+                    $codes[] = new ClassificationOccupationCode(
+                        $definition->system,
+                        $definition->version,
+                        $definition->jurisdiction,
+                        (string)$code,
+                        (string)($record['title'] ?? ''),
+                        $level,
+                        $parentCode,
+                        false,
+                        true,
+                        $definitions[$code] ?? null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        $record
+                    );
+                }
+            }
+        }
+
+        return $codes;
+    }
+
+    /**
+     * @return ClassificationOccupationSearchTerm[]
+     */
+    private function loadSocSearch(ClassificationOccupationDatasetDefinition $definition): array
+    {
+        $path = $this->getFilePath($definition, ClassificationOccupationDataCategory::SEARCH);
+        if (!$path) {
+            return [];
+        }
+
+        $terms = [];
+        foreach ($this->reader->read($path) as $record) {
+            $code = $record['2018_soc_code'] ?? null;
+            $term = $record['2018_soc_direct_match_title'] ?? null;
+
+            if ($code && $term) {
+                $terms[] = new ClassificationOccupationSearchTerm(
+                    $definition->system,
+                    $definition->version,
+                    $definition->jurisdiction,
+                    (string)$code,
+                    (string)$term,
+                    null,
+                    false,
+                    $record
+                );
+            }
+        }
+
+        return $terms;
+    }
+
+    /**
+     * @return ClassificationOccupationCode[]
+     */
+    private function loadUkSoc(ClassificationOccupationDatasetDefinition $definition): array
+    {
+        $path = $this->getFilePath($definition, ClassificationOccupationDataCategory::STRUCTURE);
+        if (!$path) {
+            return [];
+        }
+
+        $codes = [];
+        $lastMajor = null;
+        $lastSubMajor = null;
+        $lastMinor = null;
+
+        foreach ($this->reader->read($path) as $record) {
+            $code = null;
+            $level = 0;
+            $parentCode = null;
+
+            if (!empty($record['soc2020_unit_group'])) {
+                $code = $record['soc2020_unit_group'];
+                $level = 4;
+                $parentCode = $lastMinor;
+            } elseif (!empty($record['soc2020_minor_group'])) {
+                $code = $record['soc2020_minor_group'];
+                $level = 3;
+                $parentCode = $lastSubMajor;
+                $lastMinor = $code;
+            } elseif (!empty($record['soc2020_sub_major_group'])) {
+                $code = $record['soc2020_sub_major_group'];
+                $level = 2;
+                $parentCode = $lastMajor;
+                $lastSubMajor = $code;
+            } elseif (!empty($record['soc2020_major_group'])) {
+                $code = $record['soc2020_major_group'];
+                $level = 1;
+                $parentCode = null;
+                $lastMajor = $code;
+            }
+
+            if ($code) {
+                $codes[] = new ClassificationOccupationCode(
+                    $definition->system,
+                    $definition->version,
+                    $definition->jurisdiction,
+                    (string)$code,
+                    (string)($record['soc2020_group_title'] ?? ''),
+                    $level,
+                    $parentCode,
+                    false,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    $record
+                );
+            }
+        }
+
+        return $codes;
+    }
+
+    /**
+     * @return ClassificationOccupationSearchTerm[]
+     */
+    private function loadUkSocSearch(ClassificationOccupationDatasetDefinition $definition): array
+    {
+        $path = $this->getFilePath($definition, ClassificationOccupationDataCategory::SEARCH);
+        if (!$path) {
+            return [];
+        }
+
+        $terms = [];
+        foreach ($this->reader->read($path) as $record) {
+            $code = $record['soc_2020'] ?? null;
+            $term = $record['indexocc'] ?? null;
+
+            if ($code && $term) {
+                $terms[] = new ClassificationOccupationSearchTerm(
+                    $definition->system,
+                    $definition->version,
+                    $definition->jurisdiction,
+                    (string)$code,
+                    (string)$term,
+                    null,
+                    false,
+                    $record
+                );
+            }
+        }
+
+        return $terms;
+    }
+
+    /**
+     * @return ClassificationOccupationCode[]
+     */
+    private function loadIsco(ClassificationOccupationDatasetDefinition $definition): array
+    {
+        $hierarchyPath = $this->getFilePath($definition, ClassificationOccupationDataCategory::STRUCTURE);
+        $richPath = $this->getFilePath($definition, ClassificationOccupationDataCategory::DEFINITIONS);
+
+        $richData = [];
+        if ($richPath) {
+            foreach ($this->reader->read($richPath) as $record) {
+                $code = $record['isco_08_code'] ?? null;
+                if ($code) {
+                    $richData[(string)$code] = $record;
+                }
+            }
+        }
+
+        $uniqueCodes = [];
+
+        if ($hierarchyPath) {
+            foreach ($this->reader->read($hierarchyPath) as $record) {
+                if (($record['isco_version'] ?? '') !== 'ISCO-08') {
+                    continue;
+                }
+
+                $levels = [
+                    'major' => 'major_label',
+                    'sub_major' => 'sub_major_label',
+                    'minor' => 'minor_label',
+                    'unit' => 'description'
+                ];
+
+                foreach ($levels as $codeKey => $labelKey) {
+                    $code = $record[$codeKey] ?? null;
+                    if ($code === null) {
+                        continue;
+                    }
+
+                    $code = (string)$code;
+                    if (isset($uniqueCodes[$code])) {
+                        continue;
+                    }
+
+                    $uniqueCodes[$code] = [
+                        'title' => $record[$labelKey] ?? '',
+                        'record' => $record
+                    ];
+                }
+            }
+        }
+
+        $finalCodes = [];
+        $allValidCodes = array_keys($uniqueCodes);
+
+        foreach ($uniqueCodes as $code => $data) {
+            $code = (string)$code;
+            $level = strlen($code);
+            
+            $parentCode = null;
+            if ($level > 1) {
+                $parentCode = substr($code, 0, $level - 1);
+                if (!in_array($parentCode, $allValidCodes)) {
+                    $parentCode = null;
+                }
+            }
+
+            $rich = $richData[$code] ?? [];
+            
+            $finalCodes[] = new ClassificationOccupationCode(
+                $definition->system,
+                $definition->version,
+                $definition->jurisdiction,
+                $code,
+                (string)($rich['title_en'] ?? $data['title']),
+                $level,
+                $parentCode,
+                false,
+                true,
+                $rich['definition'] ?? null,
+                $rich['tasks_include'] ?? null,
+                $rich['included_occupations'] ?? null,
+                $rich['excluded_occupations'] ?? null,
+                $rich['notes'] ?? null,
+                $data['record']
+            );
+        }
+
+        return $finalCodes;
+    }
+
+    /**
+     * @return ClassificationOccupationSearchTerm[]
+     */
+    private function loadIscoSearch(ClassificationOccupationDatasetDefinition $definition): array
+    {
+        $path = $this->getFilePath($definition, ClassificationOccupationDataCategory::SEARCH);
+        if (!$path) {
+            return [];
+        }
+
+        $terms = [];
+        foreach ($this->reader->read($path) as $record) {
+            $code = $record['isco_08'] ?? null;
+            $term = $record['english_title'] ?? null;
+
+            if ($code && $term) {
+                $terms[] = new ClassificationOccupationSearchTerm(
+                    $definition->system,
+                    $definition->version,
+                    $definition->jurisdiction,
+                    (string)$code,
+                    (string)$term,
+                    null,
+                    false,
+                    $record
+                );
+            }
+        }
+
+        return $terms;
+    }
+}

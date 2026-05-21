@@ -21,7 +21,7 @@ class ClassificationOccupationRegistry
             $dataRoot,
             [
                 new ClassificationOccupationDatasetDefinition(
-                    System::SOC,
+                    ClassificationOccupationSystem::SOC,
                     '2018',
                     'US',
                     'soc',
@@ -33,7 +33,7 @@ class ClassificationOccupationRegistry
                     ]
                 ),
                 new ClassificationOccupationDatasetDefinition(
-                    System::UK_SOC,
+                    ClassificationOccupationSystem::UK_SOC,
                     '2020',
                     'GB',
                     'uk_soc',
@@ -44,7 +44,7 @@ class ClassificationOccupationRegistry
                     ]
                 ),
                 new ClassificationOccupationDatasetDefinition(
-                    System::ISCO,
+                    ClassificationOccupationSystem::ISCO,
                     '08',
                     'INTL',
                     'isco',
@@ -60,6 +60,8 @@ class ClassificationOccupationRegistry
 
         $manifest->validate();
 
-        return new ClassificationOccupation($manifest);
+        $loader = new DefaultOccupationDataLoader($dataRoot);
+
+        return new ClassificationOccupation($manifest, $loader);
     }
 }
