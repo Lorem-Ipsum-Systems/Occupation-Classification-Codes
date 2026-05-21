@@ -143,21 +143,21 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
                 $level = 0;
                 $parentCode = null;
 
-                if (!empty($record['detailed_occupation'])) {
+                if (isset($record['detailed_occupation']) && $record['detailed_occupation'] !== '') {
                     $code = $record['detailed_occupation'];
                     $level = 4;
                     $parentCode = $lastBroad;
-                } elseif (!empty($record['broad_group'])) {
+                } elseif (isset($record['broad_group']) && $record['broad_group'] !== '') {
                     $code = $record['broad_group'];
                     $level = 3;
                     $parentCode = $lastMinor;
                     $lastBroad = $code;
-                } elseif (!empty($record['minor_group'])) {
+                } elseif (isset($record['minor_group']) && $record['minor_group'] !== '') {
                     $code = $record['minor_group'];
                     $level = 2;
                     $parentCode = $lastMajor;
                     $lastMinor = $code;
-                } elseif (!empty($record['major_group'])) {
+                } elseif (isset($record['major_group']) && $record['major_group'] !== '') {
                     $code = $record['major_group'];
                     $level = 1;
                     $parentCode = null;
@@ -261,21 +261,21 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
             $level = 0;
             $parentCode = null;
 
-            if (!empty($record['soc2020_unit_group'])) {
+            if (isset($record['soc2020_unit_group']) && $record['soc2020_unit_group'] !== '') {
                 $code = $record['soc2020_unit_group'];
                 $level = 4;
                 $parentCode = $lastMinor;
-            } elseif (!empty($record['soc2020_minor_group'])) {
+            } elseif (isset($record['soc2020_minor_group']) && $record['soc2020_minor_group'] !== '') {
                 $code = $record['soc2020_minor_group'];
                 $level = 3;
                 $parentCode = $lastSubMajor;
                 $lastMinor = $code;
-            } elseif (!empty($record['soc2020_sub_major_group'])) {
+            } elseif (isset($record['soc2020_sub_major_group']) && $record['soc2020_sub_major_group'] !== '') {
                 $code = $record['soc2020_sub_major_group'];
                 $level = 2;
                 $parentCode = $lastMajor;
                 $lastSubMajor = $code;
-            } elseif (!empty($record['soc2020_major_group'])) {
+            } elseif (isset($record['soc2020_major_group']) && $record['soc2020_major_group'] !== '') {
                 $code = $record['soc2020_major_group'];
                 $level = 1;
                 $parentCode = null;

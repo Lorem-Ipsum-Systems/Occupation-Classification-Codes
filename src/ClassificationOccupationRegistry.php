@@ -107,7 +107,7 @@ class ClassificationOccupationRegistry
     public function versions(?string $system = null): array
     {
         $versions = [];
-        $systemEnum = $system !== null ? ClassificationOccupationSystem::tryFrom($system) : null;
+        $systemEnum = $system !== null ? ClassificationOccupationSystem::tryFrom(strtoupper($system)) : null;
         
         if ($system !== null && $systemEnum === null) {
             return [];
@@ -258,7 +258,7 @@ class ClassificationOccupationRegistry
      */
     public function search(string $query, ?string $system = null, ?string $version = null, int $limit = 20): array
     {
-        $normalizedQuery = $this->normalize($query);
+        $normalizedQuery = ClassificationOccupationSearchTerm::normalize($query);
         if ($normalizedQuery === '' && $query === '') {
             return [];
         }
@@ -272,12 +272,12 @@ class ClassificationOccupationRegistry
                 $matchedTerm = '';
 
                 // Exact code match
-                if ($code->code === $query || $this->normalize($code->code) === $normalizedQuery) {
+                if ($code->code === $query || ClassificationOccupationSearchTerm::normalize($code->code) === $normalizedQuery) {
                     $score = 1000;
                     $matchedTerm = $code->code;
                 } else {
                     // Title matches
-                    $normTitle = $this->normalize($code->title);
+                    $normTitle = ClassificationOccupationSearchTerm::normalize($code->title);
                     if ($normTitle === $normalizedQuery) {
                         $score = 900;
                         $matchedTerm = $code->title;
@@ -291,10 +291,10 @@ class ClassificationOccupationRegistry
 
                     // Description/Notes matches
                     if ($score < 600) {
-                        if ($code->description && str_contains($this->normalize($code->description), $normalizedQuery)) {
+                        if ($code->description && str_contains(ClassificationOccupationSearchTerm::normalize($code->description), $normalizedQuery)) {
                             $score = 600;
                             $matchedTerm = $code->title;
-                        } elseif ($code->notes && str_contains($this->normalize($code->notes), $normalizedQuery)) {
+                        } elseif ($code->notes && str_contains(ClassificationOccupationSearchTerm::normalize($code->notes), $normalizedQuery)) {
                             $score = 600;
                             $matchedTerm = $code->title;
                         }
@@ -308,7 +308,7 @@ class ClassificationOccupationRegistry
 
             foreach ($dataset->searchTerms as $term) {
                 $score = 0;
-                $normTerm = $this->normalize($term->term);
+                $normTerm = $term->normalizedTerm;
 
                 if ($normTerm === $normalizedQuery) {
                     $score = 900;
@@ -335,7 +335,7 @@ class ClassificationOccupationRegistry
      */
     public function autocomplete(string $query, ?string $system = null, ?string $version = null, int $limit = 10): array
     {
-        $normalizedQuery = $this->normalize($query);
+        $normalizedQuery = ClassificationOccupationSearchTerm::normalize($query);
         if ($normalizedQuery === '' && $query === '') {
             return [];
         }
@@ -349,15 +349,15 @@ class ClassificationOccupationRegistry
                 $matchedTerm = '';
 
                 // Code prefix
-                if ($code->code === $query || $this->normalize($code->code) === $normalizedQuery) {
+                if ($code->code === $query || ClassificationOccupationSearchTerm::normalize($code->code) === $normalizedQuery) {
                     $score = 1000;
                     $matchedTerm = $code->code;
-                } elseif (str_starts_with($this->normalize($code->code), $normalizedQuery)) {
+                } elseif (str_starts_with(ClassificationOccupationSearchTerm::normalize($code->code), $normalizedQuery)) {
                     $score = 950;
                     $matchedTerm = $code->code;
                 } else {
                     // Title prefix
-                    $normTitle = $this->normalize($code->title);
+                    $normTitle = ClassificationOccupationSearchTerm::normalize($code->title);
                     if ($normTitle === $normalizedQuery) {
                         $score = 900;
                         $matchedTerm = $code->title;
@@ -374,7 +374,7 @@ class ClassificationOccupationRegistry
 
             foreach ($dataset->searchTerms as $term) {
                 $score = 0;
-                $normTerm = $this->normalize($term->term);
+                $normTerm = $term->normalizedTerm;
 
                 if ($normTerm === $normalizedQuery) {
                     $score = 900;
@@ -406,15 +406,6 @@ class ClassificationOccupationRegistry
         ));
     }
 
-    private function normalize(string $text): string
-    {
-        $text = mb_strtolower($text);
-        // Replace punctuation with space
-        $text = preg_replace('/[[:punct:]]/u', ' ', $text);
-        // Collapse multiple spaces
-        $text = preg_replace('/\s+/', ' ', $text);
-        return trim($text);
-    }
 
     /**
      * @param array<string, ClassificationOccupationSearchResult> $results
@@ -471,7 +462,7 @@ class ClassificationOccupationRegistry
 
     private function getDataset(string $system, string $version): ClassificationOccupationDataset
     {
-        $systemEnum = ClassificationOccupationSystem::tryFrom($system);
+        $systemEnum = ClassificationOccupationSystem::tryFrom(strtoupper($system));
         if (!$systemEnum) {
             throw ClassificationOccupationSystemNotFound::forSystem($system);
         }

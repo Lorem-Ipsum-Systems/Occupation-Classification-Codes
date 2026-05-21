@@ -9,6 +9,8 @@ namespace ClassificationOccupation\Model;
  */
 readonly class ClassificationOccupationSearchTerm
 {
+    public string $normalizedTerm;
+
     /**
      * @param array<string, mixed> $sourceMetadata
      */
@@ -22,5 +24,14 @@ readonly class ClassificationOccupationSearchTerm
         public bool $isIllustrativeExample = false,
         public array $sourceMetadata = []
     ) {
+        $this->normalizedTerm = self::normalize($this->term);
+    }
+
+    public static function normalize(string $text): string
+    {
+        $text = mb_strtolower($text);
+        $text = preg_replace('/[[:punct:]]/u', ' ', $text);
+        $text = preg_replace('/\s+/', ' ', $text);
+        return trim($text);
     }
 }
