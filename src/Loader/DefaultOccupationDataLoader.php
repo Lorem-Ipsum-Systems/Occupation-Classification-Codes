@@ -517,32 +517,59 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
             return [];
         }
 
-        $relations = [];
+        $codesByUri = [];
+
+        // 1. Load all concepts and relations from the hierarchy file
         if ($relationsPath) {
             foreach ($this->reader->read($relationsPath) as $record) {
-                $conceptUri = $record['concepturi'] ?? null;
-                $broaderUri = $record['broaderuri'] ?? null;
-                if ($conceptUri && $broaderUri) {
-                    $relations[$conceptUri] = $broaderUri;
+                $uri = $record['concepturi'] ?? null;
+                if (!$uri) {
+                    continue;
                 }
+
+                $parentUri = $record['broaderuri'] ?? null;
+                // Stop at the concept scheme levels
+                if ($parentUri && str_contains($parentUri, 'concept-scheme')) {
+                    $parentUri = null;
+                }
+
+                $codesByUri[$uri] = new ClassificationOccupationCode(
+                    $definition->system,
+                    $definition->version,
+                    $definition->jurisdiction,
+                    (string)$uri,
+                    (string)($record['conceptlabel'] ?? ''),
+                    0,
+                    $parentUri ? (string)$parentUri : null,
+                    false,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    $record
+                );
             }
         }
 
-        $codes = [];
+        // 2. Enrich/Override with occupation metadata from the occupations file
         foreach ($this->reader->read($occupationsPath) as $record) {
             $uri = $record['concepturi'] ?? null;
             if (!$uri) {
                 continue;
             }
 
-            $codes[] = new ClassificationOccupationCode(
+            $existing = $codesByUri[$uri] ?? null;
+
+            $codesByUri[$uri] = new ClassificationOccupationCode(
                 $definition->system,
                 $definition->version,
                 $definition->jurisdiction,
                 (string)$uri,
-                (string)($record['preferredlabel'] ?? ''),
+                (string)($record['preferredlabel'] ?? ($existing ? $existing->title : '')),
                 0,
-                $relations[$uri] ?? null,
+                $existing ? $existing->parentCode : null,
                 false,
                 true,
                 $record['description'] ?? null,
@@ -554,7 +581,7 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
             );
         }
 
-        return $this->calculateEscoLevels($codes);
+        return $this->calculateEscoLevels(array_values($codesByUri));
     }
 
     /**
@@ -564,10 +591,13 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
     private function loadEscoSearch(ClassificationOccupationDatasetDefinition $definition, array $validCodes): array
     {
         $occupationsPath = null;
+        $relationsPath = null;
+
         foreach ($definition->files as $file) {
             if ($file->filename === 'occupations_en.ndjson') {
                 $occupationsPath = $this->dataRoot . '/' . $definition->basePath . '/' . $file->filename;
-                break;
+            } elseif ($file->filename === 'broaderRelationsOccPillar_en.ndjson') {
+                $relationsPath = $this->dataRoot . '/' . $definition->basePath . '/' . $file->filename;
             }
         }
 
@@ -576,11 +606,16 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
         }
 
         $terms = [];
+        $indexedUris = [];
+
+        // Index Occupations
         foreach ($this->reader->read($occupationsPath) as $record) {
             $uri = $record['concepturi'] ?? null;
             if (!$uri || !isset($validCodes[$uri])) {
                 continue;
             }
+
+            $indexedUris[$uri] = true;
 
             // Preferred Label
             if (isset($record['preferredlabel']) && $record['preferredlabel'] !== '') {
@@ -628,6 +663,43 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
                     false,
                     $record
                 );
+            }
+        }
+
+        // Index ISCO Groups from relations file
+        if ($relationsPath) {
+            foreach ($this->reader->read($relationsPath) as $record) {
+                $uri = $record['concepturi'] ?? null;
+                if (!$uri || !isset($validCodes[$uri]) || isset($indexedUris[$uri])) {
+                    continue;
+                }
+
+                if (isset($record['conceptlabel']) && $record['conceptlabel'] !== '') {
+                    $terms[] = new ClassificationOccupationSearchTerm(
+                        $definition->system,
+                        $definition->version,
+                        $definition->jurisdiction,
+                        $uri,
+                        (string)$record['conceptlabel'],
+                        null,
+                        false,
+                        $record
+                    );
+                }
+
+                // Index the ISCO numeric part if it exists in the URI (e.g. C8121 -> 8121)
+                if (preg_match('/\/C([0-9]+)$/', (string)$uri, $matches)) {
+                    $terms[] = new ClassificationOccupationSearchTerm(
+                        $definition->system,
+                        $definition->version,
+                        $definition->jurisdiction,
+                        $uri,
+                        $matches[1],
+                        null,
+                        false,
+                        $record
+                    );
+                }
             }
         }
 
