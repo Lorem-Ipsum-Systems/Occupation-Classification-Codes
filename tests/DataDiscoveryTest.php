@@ -39,7 +39,7 @@ class DataDiscoveryTest extends TestCase
             ]
         );
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(\ClassificationOccupation\ClassificationOccupationDataFileNotFound::class);
         $this->expectExceptionMessage('Data file missing for SOC 2018');
         $manifest->validate();
     }

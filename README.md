@@ -23,11 +23,30 @@ use ClassificationOccupation\ClassificationOccupationSystem;
 $api = ClassificationOccupationRegistry::fromDefaultData();
 
 // Get occupations for a specific system and version
-$occupations = $api->getOccupations(ClassificationOccupationSystem::SOC, '2018');
+$occupations = $api->codes('SOC', '2018');
 
 foreach ($occupations as $occupation) {
     echo $occupation->code . ': ' . $occupation->title . PHP_EOL;
 }
+
+// Find a specific code
+$code = $api->findCode('SOC', '2018', '15-1252');
+if ($code) {
+    echo "Found: " . $code->title . PHP_EOL;
+}
+
+// Hierarchy traversal
+$parent = $api->parentOf('SOC', '2018', '15-1252');
+$ancestors = $api->ancestorsOf('SOC', '2018', '15-1252');
+$children = $api->childrenOf('SOC', '2018', '15-1250');
+
+// Search and Autocomplete
+$results = $api->search('software developer');
+foreach ($results as $result) {
+    echo $result->code->title . " (Score: " . $result->score . ")\n";
+}
+
+$suggestions = $api->autocomplete('soft');
 ```
 
 ## Features

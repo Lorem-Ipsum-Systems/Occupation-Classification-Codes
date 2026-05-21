@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ClassificationOccupation\Tests;
 
-use ClassificationOccupation\ClassificationOccupation;
+use ClassificationOccupation\ClassificationOccupationRegistry;
 use ClassificationOccupation\ClassificationOccupationCode;
 use ClassificationOccupation\ClassificationOccupationSearchTerm;
 use ClassificationOccupation\ClassificationOccupationSystem;
@@ -12,16 +12,16 @@ use PHPUnit\Framework\TestCase;
 
 class ClassificationOccupationTest extends TestCase
 {
-    private ClassificationOccupation $api;
+    private ClassificationOccupationRegistry $api;
 
     protected function setUp(): void
     {
-        $this->api = \ClassificationOccupation\ClassificationOccupationRegistry::fromDefaultData();
+        $this->api = ClassificationOccupationRegistry::fromDefaultData();
     }
 
     public function testGetOccupationsSoc2018(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::SOC, '2018'));
+        $occupations = $this->api->codes('SOC', '2018');
         $this->assertNotEmpty($occupations);
         $this->assertInstanceOf(ClassificationOccupationCode::class, $occupations[0]);
         $this->assertEquals('11-0000', $occupations[0]->code);
@@ -44,7 +44,7 @@ class ClassificationOccupationTest extends TestCase
 
     public function testGetSearchTermsSoc2018(): void
     {
-        $terms = iterator_to_array($this->api->getSearchTerms(ClassificationOccupationSystem::SOC, '2018'));
+        $terms = $this->api->searchTerms('SOC', '2018');
         $this->assertNotEmpty($terms);
         $this->assertInstanceOf(ClassificationOccupationSearchTerm::class, $terms[0]);
         $this->assertIsString($terms[0]->code);
@@ -53,7 +53,7 @@ class ClassificationOccupationTest extends TestCase
 
     public function testGetOccupationsUkSoc2020(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::UK_SOC, '2020'));
+        $occupations = $this->api->codes('UK_SOC', '2020');
         $this->assertNotEmpty($occupations);
         $this->assertEquals('1', $occupations[0]->code);
         $this->assertEquals('MANAGERS, DIRECTORS AND SENIOR OFFICIALS', $occupations[0]->title);
@@ -62,7 +62,7 @@ class ClassificationOccupationTest extends TestCase
 
     public function testGetOccupationsIsco08(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::ISCO, '08'));
+        $occupations = $this->api->codes('ISCO', '08');
         $this->assertNotEmpty($occupations);
         
         // Find a specific code to verify
@@ -82,21 +82,21 @@ class ClassificationOccupationTest extends TestCase
 
     public function testPreservesSourceMetadata(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::SOC, '2018'));
+        $occupations = $this->api->codes('SOC', '2018');
         $first = $occupations[0];
         $this->assertArrayHasKey('source_file', $first->sourceMetadata);
         $this->assertEquals('soc_structure_2018.xlsx', $first->sourceMetadata['source_file']);
     }
 
-    public function testInvalidSystemVersionReturnsEmpty(): void
+    public function testInvalidSystemVersionThrows(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::SOC, '9999'));
-        $this->assertEmpty($occupations);
+        $this->expectException(\ClassificationOccupation\ClassificationOccupationVersionNotFound::class);
+        $this->api->codes('SOC', '9999');
     }
 
     public function testSystemAndVersionArePresentInCode(): void
     {
-        $occupations = iterator_to_array($this->api->getOccupations(ClassificationOccupationSystem::SOC, '2018'));
+        $occupations = $this->api->codes('SOC', '2018');
         $first = $occupations[0];
         $this->assertEquals(ClassificationOccupationSystem::SOC, $first->system);
         $this->assertEquals('2018', $first->version);

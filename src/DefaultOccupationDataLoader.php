@@ -20,25 +20,37 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
         switch ($definition->system) {
             case ClassificationOccupationSystem::SOC:
                 $codes = $this->loadSoc($definition);
-                $searchTerms = $this->loadSocSearch($definition);
+                $codesMap = [];
+                foreach ($codes as $c) { $codesMap[$c->code] = true; }
+                $searchTerms = $this->loadSocSearch($definition, $codesMap);
                 break;
             case ClassificationOccupationSystem::UK_SOC:
                 $codes = $this->loadUkSoc($definition);
-                $searchTerms = $this->loadUkSocSearch($definition);
+                $codesMap = [];
+                foreach ($codes as $c) { $codesMap[$c->code] = true; }
+                $searchTerms = $this->loadUkSocSearch($definition, $codesMap);
                 break;
             case ClassificationOccupationSystem::ISCO:
                 $codes = $this->loadIsco($definition);
-                $searchTerms = $this->loadIscoSearch($definition);
+                $codesMap = [];
+                foreach ($codes as $c) { $codesMap[$c->code] = true; }
+                $searchTerms = $this->loadIscoSearch($definition, $codesMap);
                 break;
         }
 
         $codes = $this->calculateIsLeaf($codes);
+
+        $codesMap = [];
+        foreach ($codes as $code) {
+            $codesMap[$code->code] = $code;
+        }
 
         return new ClassificationOccupationDataset(
             $definition->system,
             $definition->version,
             $definition->jurisdiction,
             $codes,
+            $codesMap,
             $searchTerms
         );
     }
@@ -171,9 +183,10 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
     }
 
     /**
+     * @param array<string, bool> $validCodes
      * @return ClassificationOccupationSearchTerm[]
      */
-    private function loadSocSearch(ClassificationOccupationDatasetDefinition $definition): array
+    private function loadSocSearch(ClassificationOccupationDatasetDefinition $definition, array $validCodes): array
     {
         $path = $this->getFilePath($definition, ClassificationOccupationDataCategory::SEARCH);
         if (!$path) {
@@ -182,18 +195,37 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
 
         $terms = [];
         foreach ($this->reader->read($path) as $record) {
-            $code = $record['2018_soc_code'] ?? null;
-            $term = $record['2018_soc_direct_match_title'] ?? null;
+            $code = (string)($record['2018_soc_code'] ?? '');
+            if ($code === '' || !isset($validCodes[$code])) {
+                continue;
+            }
 
-            if ($code && $term) {
+            $directMatchTitle = $record['2018_soc_direct_match_title'] ?? null;
+            $socTitle = $record['2018_soc_title'] ?? null;
+            $isIllustrative = ($record['illustrative_example'] ?? null) === 'x';
+
+            if ($directMatchTitle) {
                 $terms[] = new ClassificationOccupationSearchTerm(
                     $definition->system,
                     $definition->version,
                     $definition->jurisdiction,
-                    (string)$code,
-                    (string)$term,
+                    $code,
+                    (string)$directMatchTitle,
                     null,
-                    false,
+                    $isIllustrative,
+                    $record
+                );
+            }
+
+            if ($socTitle && $socTitle !== $directMatchTitle) {
+                $terms[] = new ClassificationOccupationSearchTerm(
+                    $definition->system,
+                    $definition->version,
+                    $definition->jurisdiction,
+                    $code,
+                    (string)$socTitle,
+                    null,
+                    $isIllustrative,
                     $record
                 );
             }
@@ -268,9 +300,10 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
     }
 
     /**
+     * @param array<string, bool> $validCodes
      * @return ClassificationOccupationSearchTerm[]
      */
-    private function loadUkSocSearch(ClassificationOccupationDatasetDefinition $definition): array
+    private function loadUkSocSearch(ClassificationOccupationDatasetDefinition $definition, array $validCodes): array
     {
         $path = $this->getFilePath($definition, ClassificationOccupationDataCategory::SEARCH);
         if (!$path) {
@@ -279,20 +312,32 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
 
         $terms = [];
         foreach ($this->reader->read($path) as $record) {
-            $code = $record['soc_2020'] ?? null;
-            $term = $record['indexocc'] ?? null;
+            $code = (string)($record['soc_2020'] ?? '');
+            if ($code === '' || !isset($validCodes[$code])) {
+                continue;
+            }
 
-            if ($code && $term) {
-                $terms[] = new ClassificationOccupationSearchTerm(
-                    $definition->system,
-                    $definition->version,
-                    $definition->jurisdiction,
-                    (string)$code,
-                    (string)$term,
-                    null,
-                    false,
-                    $record
-                );
+            $fields = [
+                'indexocc',
+                'indexocc_natural_word_order',
+                'soc2020_ext_sug_title',
+                'soc2020_unit_group_title'
+            ];
+
+            foreach ($fields as $field) {
+                $term = $record[$field] ?? null;
+                if ($term !== null && $term !== '') {
+                    $terms[] = new ClassificationOccupationSearchTerm(
+                        $definition->system,
+                        $definition->version,
+                        $definition->jurisdiction,
+                        $code,
+                        (string)$term,
+                        null,
+                        false,
+                        $record
+                    );
+                }
             }
         }
 
@@ -391,9 +436,10 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
     }
 
     /**
+     * @param array<string, bool> $validCodes
      * @return ClassificationOccupationSearchTerm[]
      */
-    private function loadIscoSearch(ClassificationOccupationDatasetDefinition $definition): array
+    private function loadIscoSearch(ClassificationOccupationDatasetDefinition $definition, array $validCodes): array
     {
         $path = $this->getFilePath($definition, ClassificationOccupationDataCategory::SEARCH);
         if (!$path) {
@@ -402,15 +448,18 @@ class DefaultOccupationDataLoader implements ClassificationOccupationDataLoader
 
         $terms = [];
         foreach ($this->reader->read($path) as $record) {
-            $code = $record['isco_08'] ?? null;
-            $term = $record['english_title'] ?? null;
+            $code = (string)($record['isco_08'] ?? '');
+            if ($code === '' || !isset($validCodes[$code])) {
+                continue;
+            }
 
-            if ($code && $term) {
+            $term = $record['english_title'] ?? null;
+            if ($term !== null && $term !== '') {
                 $terms[] = new ClassificationOccupationSearchTerm(
                     $definition->system,
                     $definition->version,
                     $definition->jurisdiction,
-                    (string)$code,
+                    $code,
                     (string)$term,
                     null,
                     false,

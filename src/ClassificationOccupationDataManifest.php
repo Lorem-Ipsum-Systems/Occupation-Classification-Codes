@@ -45,7 +45,7 @@ class ClassificationOccupationDataManifest
             foreach ($dataset->files as $file) {
                 $path = $this->dataRoot . '/' . $dataset->basePath . '/' . $file->filename;
                 if (!file_exists($path)) {
-                    throw new \RuntimeException(sprintf(
+                    throw new ClassificationOccupationDataFileNotFound(sprintf(
                         'Data file missing for %s %s: %s',
                         $dataset->system->value,
                         $dataset->version,
